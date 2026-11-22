@@ -3,9 +3,9 @@ package endpoints
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sync"
 	"time"
@@ -90,12 +90,17 @@ func (e *PutHandler) parseRequest(r *http.Request) (*putRequest, error) {
 	}
 
 	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
+	// Read at most one byte beyond the allowed envelope to distinguish an
+	// exact fit from an oversized stream, including on Go 1.18.
+	readLimit := e.cfg.maxBodyBytes
+	if readLimit < math.MaxInt64 {
+		readLimit++
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, readLimit))
+	if int64(len(body)) > e.cfg.maxBodyBytes {
+		return nil, utils.NewPBCError(utils.PUT_BODY_TOO_LARGE)
+	}
 	if err != nil {
-		var limitErr *http.MaxBytesError
-		if errors.As(err, &limitErr) {
-			return nil, utils.NewPBCError(utils.PUT_BODY_TOO_LARGE)
-		}
 		return nil, utils.NewPBCError(utils.PUT_BAD_REQUEST)
 	}
 
@@ -192,7 +197,6 @@ func (e *PutHandler) handle(w http.ResponseWriter, r *http.Request, ps httproute
 
 	start := time.Now()
 
-	r.Body = http.MaxBytesReader(w, r.Body, e.cfg.maxBodyBytes)
 	bytes, err := e.processPutRequest(r)
 	if err != nil {
 		// At least one of the elements in the incoming request could not be stored

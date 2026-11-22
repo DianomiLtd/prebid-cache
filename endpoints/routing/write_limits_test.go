@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,4 +57,12 @@ func TestWriteBodyLimit(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestWriteBodyLimitMaxInt64(t *testing.T) {
+	cfg := config.Configuration{RequestLimits: config.RequestLimits{MaxBodyBytes: math.MaxInt64}}
+	handler := NewAdminHandler(cfg, backends.NewMemoryBackend(), &metrics.Metrics{})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/cache", strings.NewReader(`{"puts":[]}`)))
+	require.Equal(t, http.StatusOK, w.Code)
 }

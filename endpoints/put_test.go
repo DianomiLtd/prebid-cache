@@ -1116,7 +1116,7 @@ func TestParseRequest(t *testing.T) {
 					New: func() interface{} { return &putRequest{} },
 				},
 			},
-			cfg: putHandlerConfig{maxNumValues: 1},
+			cfg: putHandlerConfig{maxNumValues: 1, maxBodyBytes: utils.REQUEST_MAX_BODY_BYTES},
 		}
 		// run
 		put, err := putHandler.parseRequest(tc.getInputRequest())
