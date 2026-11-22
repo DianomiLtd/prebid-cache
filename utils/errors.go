@@ -21,6 +21,7 @@ const (
 	PUT_INTERNAL_SERVER              // PUT http.StatusInternalServerError 500
 	MARSHAL_RESPONSE                 // PUT http.StatusInternalServerError 500
 	PUT_DEADLINE_EXCEEDED            // PUT HttpDependencyTimeout 597
+	PUT_BODY_TOO_LARGE
 )
 
 // HTTPDependencyTimeout is the status code for errors due to a downstream dependency timeout.
@@ -28,6 +29,7 @@ const HTTPDependencyTimeout = 597
 
 // Map Prebid Cache's error codes to their corresponding response status codes
 var errToStatusCodes map[int]int = map[int]int{
+	PUT_BODY_TOO_LARGE:        http.StatusRequestEntityTooLarge,
 	MISSING_KEY:               http.StatusBadRequest,
 	RECORD_EXISTS:             http.StatusBadRequest,
 	PUT_MAX_NUM_VALUES:        http.StatusBadRequest,
@@ -49,6 +51,7 @@ var errToStatusCodes map[int]int = map[int]int{
 // Not all error types are found here since some of them have non-constant error messages and
 // are assigned custom messages upon creation
 var errToMsgs map[int]string = map[int]string{
+	PUT_BODY_TOO_LARGE:       "Request body exceeds the configured limit.",
 	MISSING_KEY:              "Missing required parameter uuid",
 	RECORD_EXISTS:            "Record exists with provided key.",
 	MISSING_VALUE:            "Missing value.",

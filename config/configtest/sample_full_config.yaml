@@ -7,6 +7,7 @@ rate_limiter:
   enabled: false
   num_requests: 150
 request_limits:
+  max_body_bytes: 262144
   max_size_bytes: 10240
   max_num_values: 10
   max_ttl_seconds: 5000

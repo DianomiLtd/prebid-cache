@@ -42,7 +42,7 @@ func addReadRoutes(cfg config.Configuration, dataStore backends.Backend, appMetr
 }
 
 func addWriteRoutes(cfg config.Configuration, dataStore backends.Backend, appMetrics *metrics.Metrics, router *httprouter.Router) {
-	router.POST("/cache", endpoints.NewPutHandler(dataStore, appMetrics, cfg.RequestLimits.MaxNumValues, cfg.RequestLimits.AllowSettingKeys))
+	router.POST("/cache", endpoints.NewPutHandlerWithLimits(dataStore, appMetrics, cfg.RequestLimits))
 }
 
 func handleCors(handler http.Handler) http.Handler {

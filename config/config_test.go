@@ -816,6 +816,12 @@ func TestRequestLimitsValidateAndLog(t *testing.T) {
 		expectFatal        bool
 	}{
 		{
+			description:        "Negative max_body_bytes",
+			inRequestLimitsCfg: &RequestLimits{MaxBodyBytes: -1},
+			expectedLogInfo:    []logComponents{{msg: "invalid config.request_limits.max_body_bytes: -1. Value cannot be negative.", lvl: logrus.FatalLevel}},
+			expectFatal:        true,
+		},
+		{
 			description:        "Blank RequestLimits",
 			inRequestLimitsCfg: &RequestLimits{},
 			expectedLogInfo: []logComponents{
@@ -1213,6 +1219,7 @@ func getExpectedDefaultConfig() Configuration {
 			MaxRequestsPerSecond: 100,
 		},
 		RequestLimits: RequestLimits{
+			MaxBodyBytes:  1048576,
 			MaxSize:       10240,
 			MaxNumValues:  10,
 			MaxTTLSeconds: 3600,
@@ -1237,6 +1244,7 @@ func getExpectedFullConfigForTestFile() Configuration {
 			MaxRequestsPerSecond: 150,
 		},
 		RequestLimits: RequestLimits{
+			MaxBodyBytes:     262144,
 			MaxSize:          10240,
 			MaxNumValues:     10,
 			MaxTTLSeconds:    5000,

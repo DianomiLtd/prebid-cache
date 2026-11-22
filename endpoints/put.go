@@ -3,8 +3,9 @@ package endpoints
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/prebid/prebid-cache/backends"
 	backendDecorators "github.com/prebid/prebid-cache/backends/decorators"
+	"github.com/prebid/prebid-cache/config"
 	"github.com/prebid/prebid-cache/metrics"
 	"github.com/prebid/prebid-cache/utils"
 	"github.com/sirupsen/logrus"
@@ -27,6 +29,7 @@ type PutHandler struct {
 
 type putHandlerConfig struct {
 	maxNumValues int
+	maxBodyBytes int64
 	allowKeys    bool
 }
 
@@ -37,6 +40,14 @@ type syncPools struct {
 
 // NewPutHandler returns the handle function for the "/cache" endpoint when it receives a POST request
 func NewPutHandler(storage backends.Backend, metrics *metrics.Metrics, maxNumValues int, allowKeys bool) func(http.ResponseWriter, *http.Request, httprouter.Params) {
+	return NewPutHandlerWithLimits(storage, metrics, config.RequestLimits{MaxNumValues: maxNumValues, AllowSettingKeys: allowKeys})
+}
+
+// NewPutHandlerWithLimits applies both request and per-batch limits to cache writes.
+func NewPutHandlerWithLimits(storage backends.Backend, metrics *metrics.Metrics, limits config.RequestLimits) httprouter.Handle {
+	if limits.MaxBodyBytes <= 0 {
+		limits.MaxBodyBytes = utils.REQUEST_MAX_BODY_BYTES
+	}
 	putHandler := &PutHandler{}
 
 	// Assign storage client to put endpoint
@@ -47,8 +58,9 @@ func NewPutHandler(storage backends.Backend, metrics *metrics.Metrics, maxNumVal
 
 	// Pass configuration values
 	putHandler.cfg = putHandlerConfig{
-		maxNumValues: maxNumValues,
-		allowKeys:    allowKeys,
+		maxBodyBytes: limits.MaxBodyBytes,
+		maxNumValues: limits.MaxNumValues,
+		allowKeys:    limits.AllowSettingKeys,
 	}
 
 	// Instantiate thread-safe memory pools
@@ -77,11 +89,15 @@ func (e *PutHandler) parseRequest(r *http.Request) (*putRequest, error) {
 		return nil, utils.NewPBCError(utils.PUT_BAD_REQUEST)
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		var limitErr *http.MaxBytesError
+		if errors.As(err, &limitErr) {
+			return nil, utils.NewPBCError(utils.PUT_BODY_TOO_LARGE)
+		}
 		return nil, utils.NewPBCError(utils.PUT_BAD_REQUEST)
 	}
-	defer r.Body.Close()
 
 	// Allocate a PutRequest object in thread-safe memory
 	put := e.memory.requestPool.Get().(*putRequest)
@@ -90,7 +106,7 @@ func (e *PutHandler) parseRequest(r *http.Request) (*putRequest, error) {
 	if err := json.Unmarshal(body, put); err != nil {
 		// place memory back in sync pool
 		e.memory.requestPool.Put(put)
-		return nil, utils.NewPBCError(utils.PUT_BAD_REQUEST, string(body))
+		return nil, utils.NewPBCError(utils.PUT_BAD_REQUEST, "Invalid JSON request.")
 	}
 
 	if len(put.Puts) > e.cfg.maxNumValues {
@@ -176,6 +192,7 @@ func (e *PutHandler) handle(w http.ResponseWriter, r *http.Request, ps httproute
 
 	start := time.Now()
 
+	r.Body = http.MaxBytesReader(w, r.Body, e.cfg.maxBodyBytes)
 	bytes, err := e.processPutRequest(r)
 	if err != nil {
 		// At least one of the elements in the incoming request could not be stored

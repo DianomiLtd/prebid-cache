@@ -491,13 +491,13 @@ func TestMalformedOrInvalidValue(t *testing.T) {
 		{
 			desc:             "Badly escaped character in value field",
 			inPutBody:        `{"puts":[{"type":"json","value":"badly-esca"ped"}]}`,
-			expectedError:    utils.NewPBCError(utils.PUT_BAD_REQUEST, `{"puts":[{"type":"json","value":"badly-esca"ped"}]}`),
+			expectedError:    utils.NewPBCError(utils.PUT_BAD_REQUEST, "Invalid JSON request."),
 			expectedPutCalls: 0,
 		},
 		{
 			desc:             "Malformed JSON in value field",
 			inPutBody:        `{"puts":[{"type":"json","value":malformed}]}`,
-			expectedError:    utils.NewPBCError(utils.PUT_BAD_REQUEST, `{"puts":[{"type":"json","value":malformed}]}`),
+			expectedError:    utils.NewPBCError(utils.PUT_BAD_REQUEST, "Invalid JSON request."),
 			expectedPutCalls: 0,
 		},
 		{
@@ -1080,7 +1080,7 @@ func TestParseRequest(t *testing.T) {
 				r, _ := http.NewRequest("POST", "http://fakeurl.com", bytes.NewBuffer([]byte(`malformed`)))
 				return r
 			},
-			testOut{nil, utils.NewPBCError(utils.PUT_BAD_REQUEST, "malformed")},
+			testOut{nil, utils.NewPBCError(utils.PUT_BAD_REQUEST, "Invalid JSON request.")},
 		},
 		{
 			"valid request body. Expect no error",

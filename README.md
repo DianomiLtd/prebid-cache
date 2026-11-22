@@ -74,6 +74,8 @@ If any of the `puts` are invalid, then it responds with a **400** and none of th
 | `ttlseconds` | optional | integer | Represents the time to live in seconds of your data. Default value is 3600 seconds |
 | `key` | optional | string | When included, your value will be stored under this key instead of a system-generated random UUID. Requires `request_limits.allow_setting_keys` to be set to `true` |
 
+The entire POST body is limited to `request_limits.max_body_bytes` bytes (default 1 MiB, including JSON framing and whitespace). Zero selects the default. A request over the limit returns HTTP 413 before any value is stored. Set this separately from the per-value limit when supporting larger batches.
+
 If `ttlseconds` is included, its value must be non-negative and no larger than the `request_limits.max_ttl_seconds` configuration, which defaults to 3600 seconds. The `key` parameter will be ignored unless the boolean configuration flag `request_limits.allow_setting_keys` is set to `true`. The following is a sample `config.yaml` configuration file that sets the ttl to 100 seconds and allows Prebid Cache to set custom keys: 
 
 ```

@@ -85,6 +85,7 @@ func setConfigDefaults(v *viper.Viper) {
 	v.SetDefault("rate_limiter.enabled", true)
 	v.SetDefault("rate_limiter.num_requests", utils.RATE_LIMITER_NUM_REQUESTS)
 	v.SetDefault("request_limits.allow_setting_keys", false)
+	v.SetDefault("request_limits.max_body_bytes", utils.REQUEST_MAX_BODY_BYTES)
 	v.SetDefault("request_limits.max_size_bytes", utils.REQUEST_MAX_SIZE_BYTES)
 	v.SetDefault("request_limits.max_num_values", utils.REQUEST_MAX_NUM_VALUES)
 	v.SetDefault("request_limits.max_ttl_seconds", utils.REQUEST_MAX_TTL_SECONDS)
@@ -168,13 +169,18 @@ func (cfg *RateLimiting) validateAndLog() {
 }
 
 type RequestLimits struct {
-	MaxSize          int  `mapstructure:"max_size_bytes"`
-	MaxNumValues     int  `mapstructure:"max_num_values"`
-	MaxTTLSeconds    int  `mapstructure:"max_ttl_seconds"`
-	AllowSettingKeys bool `mapstructure:"allow_setting_keys"`
+	MaxBodyBytes     int64 `mapstructure:"max_body_bytes"`
+	MaxSize          int   `mapstructure:"max_size_bytes"`
+	MaxNumValues     int   `mapstructure:"max_num_values"`
+	MaxTTLSeconds    int   `mapstructure:"max_ttl_seconds"`
+	AllowSettingKeys bool  `mapstructure:"allow_setting_keys"`
 }
 
 func (cfg *RequestLimits) validateAndLog() {
+	if cfg.MaxBodyBytes < 0 {
+		log.Fatalf("invalid config.request_limits.max_body_bytes: %d. Value cannot be negative.", cfg.MaxBodyBytes)
+		return
+	}
 	log.Infof("config.request_limits.allow_setting_keys: %v", cfg.AllowSettingKeys)
 
 	if cfg.MaxTTLSeconds >= 0 {
